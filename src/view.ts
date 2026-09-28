@@ -49,14 +49,20 @@ export class View {
     return { x: this.ox + (1 - x) * this.dw, y: this.oy + y * this.dh };
   }
 
+  /** Draws any camera-shaped image (e.g. a delayed frame) with the same mirrored fit. */
+  drawMirrored(src: CanvasImageSource, dx = 0) {
+    const g = this.g;
+    g.save();
+    g.translate(this.W + dx, 0);
+    g.scale(-1, 1);
+    g.drawImage(src, this.ox, this.oy, this.dw, this.dh);
+    g.restore();
+  }
+
   drawVideo(dim = 0) {
     const g = this.g;
     if (this.dw) {
-      g.save();
-      g.translate(this.W, 0);
-      g.scale(-1, 1);
-      g.drawImage(this.video, this.ox, this.oy, this.dw, this.dh);
-      g.restore();
+      this.drawMirrored(this.video);
     } else {
       g.fillStyle = "#222";
       g.fillRect(0, 0, this.W, this.H);

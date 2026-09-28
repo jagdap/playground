@@ -67,6 +67,57 @@ export class Sound {
     this.tone(300, 0.18, "sine", 0.18, 200);
   }
 
+  /** Audio clock in seconds (for rhythm games); 0 before unlock. */
+  get now() {
+    return this.ctx?.currentTime ?? 0;
+  }
+
+  /** Schedules a note at an absolute audio-clock time. */
+  note(freq: number, when: number, dur: number, type: OscillatorType = "triangle", vol = 0.15) {
+    this.tone(freq, dur, type, vol, undefined, Math.max(0, when - this.now));
+  }
+
+  kick(when: number) {
+    this.tone(150, 0.25, "sine", 0.5, 45, Math.max(0, when - this.now));
+  }
+
+  snare(when: number) {
+    this.noise(when, 0.15, 1800, 0.22, "highpass");
+  }
+
+  hat(when: number) {
+    this.noise(when, 0.05, 7000, 0.08, "highpass");
+  }
+
+  /** Bowling pins. */
+  crash() {
+    this.noise(this.now, 0.5, 900, 0.35, "bandpass");
+    this.tone(180, 0.3, "square", 0.08, 90);
+  }
+
+  /** Bat hitting the ball. */
+  crack() {
+    this.noise(this.now, 0.08, 2500, 0.45, "highpass");
+    this.tone(1200, 0.12, "triangle", 0.2, 600);
+  }
+
+  private noise(when: number, len: number, freq: number, vol: number, type: BiquadFilterType) {
+    const ctx = this.ctx;
+    if (!ctx || this.muted) return;
+    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * len), ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length) ** 2;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const filter = ctx.createBiquadFilter();
+    filter.type = type;
+    filter.frequency.value = freq;
+    const gain = ctx.createGain();
+    gain.gain.value = vol;
+    src.connect(filter).connect(gain).connect(ctx.destination);
+    src.start(Math.max(when, ctx.currentTime));
+  }
+
   whoosh() {
     const ctx = this.ctx;
     if (!ctx || this.muted) return;

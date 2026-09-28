@@ -7,6 +7,12 @@ export type Pt = { x: number; y: number; v: number };
 // because the video is mirrored, the person's left shows on the screen's left.
 export const LM = {
   nose: 0,
+  lEye: 2,
+  rEye: 5,
+  lEar: 7,
+  rEar: 8,
+  mouthL: 9,
+  mouthR: 10,
   lShoulder: 11,
   rShoulder: 12,
   lElbow: 13,
@@ -72,6 +78,12 @@ export class Player {
   handL: Pt = { x: 0, y: 0, v: 0 };
   handR: Pt = { x: 0, y: 0, v: 0 };
   torso = 100;
+  /** Hand velocities in px/s. */
+  velL = { x: 0, y: 0 };
+  velR = { x: 0, y: 0 };
+  /** Time of the most recent clap (hands coming together). */
+  lastClapT = -1e9;
+  private handsTogether = false;
 
   // Standing baseline for jump / duck detection.
   baseHipY: number | null = null;
@@ -95,6 +107,17 @@ export class Player {
     return [this.handL, this.handR];
   }
 
+  get vels() {
+    return [this.velL, this.velR];
+  }
+
+  /** Rough head radius in px, from ear spacing (falls back to torso size). */
+  get headR() {
+    const l = this.pts[LM.lEar];
+    const r = this.pts[LM.rEar];
+    return Math.max(dist(l, r) * 0.75, 0.35 * this.torso);
+  }
+
   reset() {
     this.filters = Array.from({ length: 33 }, () => [new OneEuro(), new OneEuro()]);
     this.baseHipY = null;
@@ -103,6 +126,9 @@ export class Player {
   }
 
   ingest(raw: Pt[], t: number) {
+    const dt = t - this.lastSeen;
+    const prevL = this.handL;
+    const prevR = this.handR;
     this.pts = raw.map((p, i) => ({
       x: this.filters[i][0].filter(p.x, t),
       y: this.filters[i][1].filter(p.y, t),
@@ -118,7 +144,31 @@ export class Player {
     this.torso = Math.max(dist(this.shoulderMid, this.hipMid), 30);
     this.handL = mid(p[LM.lWrist], p[LM.lIndex]);
     this.handR = mid(p[LM.rWrist], p[LM.rIndex]);
+    if (dt > 0 && dt < 0.2) {
+      const ema = (v: { x: number; y: number }, a: Pt, b: Pt) => {
+        v.x += 0.5 * ((b.x - a.x) / dt - v.x);
+        v.y += 0.5 * ((b.y - a.y) / dt - v.y);
+      };
+      ema(this.velL, prevL, this.handL);
+      ema(this.velR, prevR, this.handR);
+    } else {
+      this.velL = { x: 0, y: 0 };
+      this.velR = { x: 0, y: 0 };
+    }
+    this.updateClap(t);
     this.updateBaseline(t);
+  }
+
+  private updateClap(t: number) {
+    if (this.handL.v < 0.4 || this.handR.v < 0.4) return;
+    const d = dist(this.handL, this.handR);
+    const thr = 0.45 * this.torso;
+    if (!this.handsTogether && d < thr) {
+      this.handsTogether = true;
+      this.lastClapT = t;
+    } else if (this.handsTogether && d > thr * 1.5) {
+      this.handsTogether = false;
+    }
   }
 
   private updateBaseline(t: number) {

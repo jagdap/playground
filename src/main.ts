@@ -2,16 +2,32 @@ import type { PoseLandmarker } from "@mediapipe/tasks-vision";
 import { Sound } from "./audio";
 import { drawDebug } from "./debug";
 import { Fx } from "./fx";
+import { bumperBowling } from "./games/bowling";
 import { bubblePop } from "./games/bubbles";
 import { copyThePose } from "./games/copy";
+import { homeRun } from "./games/homerun";
 import { jumpAndDuck } from "./games/jump";
+import { sillyMirror } from "./games/mirror";
 import { mirrorPaint } from "./games/paint";
+import { chickenParty } from "./games/party";
+import { starDance } from "./games/stardance";
 import type { Game, GameContext } from "./games/types";
 import { PlayerTracker } from "./players";
 import { createPoseLandmarker } from "./pose";
 import { emoji, label, roundRect, UI_FONT, View } from "./view";
 
-const GAMES: Game[] = [bubblePop(), jumpAndDuck(), copyThePose(), mirrorPaint()];
+// First row: party games. Second row: tracking demos.
+const GAMES: Game[] = [
+  sillyMirror(),
+  chickenParty(),
+  starDance(),
+  bumperBowling(),
+  homeRun(),
+  bubblePop(),
+  jumpAndDuck(),
+  copyThePose(),
+  mirrorPaint(),
+];
 
 class App implements GameContext {
   readonly view: View;
@@ -89,6 +105,10 @@ class App implements GameContext {
   private onKey(e: KeyboardEvent) {
     this.sound.unlock();
     const k = e.key.toLowerCase();
+    if (this.mode === "game" && this.game?.onKey?.(k)) {
+      e.preventDefault();
+      return;
+    }
     if (k === "d") this.debug = !this.debug;
     else if (k === "m") {
       this.sound.muted = !this.sound.muted;
@@ -99,10 +119,13 @@ class App implements GameContext {
     } else if (k === "escape") this.toMenu();
     else if (this.mode === "menu") {
       const n = GAMES.length;
-      if (k === "arrowright" || k === "arrowdown") this.select((this.selected + 1) % n);
-      else if (k === "arrowleft" || k === "arrowup") this.select((this.selected + n - 1) % n);
+      const cols = this.menuCols;
+      if (k === "arrowright") this.select((this.selected + 1) % n);
+      else if (k === "arrowleft") this.select((this.selected + n - 1) % n);
+      else if (k === "arrowdown") this.select(Math.min(n - 1, this.selected + cols));
+      else if (k === "arrowup") this.select(Math.max(0, this.selected - cols));
       else if (k === "enter" || k === " ") this.startGame(this.selected);
-      else if (k >= "1" && k <= String(n)) this.startGame(Number(k) - 1);
+      else if (k.length === 1 && k >= "1" && k <= String(Math.min(n, 9))) this.startGame(Number(k) - 1);
     } else if (this.mode === "game" && k === "r") this.startGame(this.selected);
     else return;
     e.preventDefault();
@@ -167,7 +190,7 @@ class App implements GameContext {
       if (this.game.usesScore) this.drawScore();
       this.drawStepIn(t);
       g.globalAlpha = 0.6;
-      label(g, "Esc menu · R restart", W - 16 * unit, H - 20 * unit, 18 * unit, "#fff", "right");
+      label(g, "Esc menu · R restart · Space/N test keys", W - 16 * unit, H - 20 * unit, 18 * unit, "#fff", "right");
       g.globalAlpha = 1;
     }
 
@@ -181,10 +204,11 @@ class App implements GameContext {
     label(g, "🎈 Playground", W / 2, H * 0.14, 80 * unit);
 
     const n = GAMES.length;
-    const cols = W > H * 1.2 ? n : 2;
+    const cols = this.menuCols;
     const rows = Math.ceil(n / cols);
-    const gap = 28 * unit;
-    const cw = Math.min((W - gap * (cols + 1)) / cols, 280 * unit);
+    const gap = 24 * unit;
+    const availH = H * 0.7;
+    const cw = Math.min((W - gap * (cols + 1)) / cols, (availH - gap * (rows - 1)) / rows / 1.1, 280 * unit);
     const ch = cw * 1.1;
     const totalW = cols * cw + (cols - 1) * gap;
     const totalH = rows * ch + (rows - 1) * gap;
@@ -192,7 +216,9 @@ class App implements GameContext {
     const y0 = H * 0.55 - totalH / 2;
 
     this.cardRects = GAMES.map((game, i) => {
-      const x = x0 + (i % cols) * (cw + gap);
+      // Center a short last row.
+      const inRow = Math.min(cols, n - Math.floor(i / cols) * cols);
+      const x = x0 + ((cols - inRow) * (cw + gap)) / 2 + (i % cols) * (cw + gap);
       const y = y0 + Math.floor(i / cols) * (ch + gap);
       const sel = i === this.selected;
       const s = sel ? 1.1 + 0.02 * Math.sin(t * 5) : 1;
@@ -210,15 +236,20 @@ class App implements GameContext {
         g.stroke();
       }
       emoji(g, game.emoji, 0, -ch * 0.1, cw * 0.45);
-      label(g, game.title, 0, ch * 0.32, 30 * unit);
+      label(g, game.title, 0, ch * 0.32, Math.min(30 * unit, cw * 0.13));
       g.restore();
       return new DOMRect(x, y, cw, ch);
     });
 
     this.drawHands();
     g.globalAlpha = 0.8;
-    label(g, "← → pick   Enter play   Esc menu   D debug   M mute   F fullscreen", W / 2, H - 30 * unit, 20 * unit);
+    label(g, "arrows pick   Enter play   Esc menu   D debug   M mute   F fullscreen", W / 2, H - 30 * unit, 20 * unit);
     g.globalAlpha = 1;
+  }
+
+  private get menuCols() {
+    const { W, H } = this.view;
+    return W > H * 1.2 ? 5 : 3;
   }
 
   private drawHands() {

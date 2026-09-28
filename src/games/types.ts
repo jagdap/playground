@@ -23,6 +23,8 @@ export interface Game {
   start(ctx: GameContext): void;
   update(dt: number, t: number): void;
   draw(g: CanvasRenderingContext2D): void;
+  /** Optional in-game keys (e.g. arrows); return true if handled. */
+  onKey?(key: string): boolean;
 }
 
 export const rand = (a: number, b: number) => a + Math.random() * (b - a);

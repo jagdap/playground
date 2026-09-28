@@ -18,7 +18,8 @@ Stand 6–8 ft back so that at least your hips, and ideally your whole body, are
 | Key | Action |
 |---|---|
 | ← → | pick a game |
-| Enter / 1–4 | play |
+| Enter / 1–9 | play |
+| Space / N | in-game test keys (roll, swing, next round/song) |
 | Esc | back to menu |
 | R | restart game |
 | D | debug overlay (skeleton, FPS, jump/duck baselines) |
@@ -26,6 +27,16 @@ Stand 6–8 ft back so that at least your hips, and ideally your whole body, are
 | F | fullscreen |
 
 ## Games
+
+**Party games:**
+
+- **Silly Mirror:** AR filters: Twins (a delayed, color-shifted copy of you), Animal Faces, Big Head, Dragon (arms up to breathe fire), Royal Party, Super Strong (lift a barbell overhead) and Magic Hands. Switch filters with ← → or a clap.
+- **Chicken Party:** 25-second mini-games in random order: Flap Flap (flap your arms to fly a chick to its nest), Egg Squat (squat to lay eggs that hatch), Hip Copter (move side to side to catch balloons) and Cookie Catch. N skips to the next one.
+- **Star Dance:** Stars appear within arm's reach, and you touch each one as its ring closes on the beat of a synthesized song. Three songs; N skips to the next.
+- **Bumper Bowling:** Swing your arm up from your hip to roll, and step left or right to aim. Bumpers are always on, and the two of you alternate frames. Space rolls for testing.
+- **Home Run:** Swing your arms sideways as the pitch arrives, with a generous timing window. Batters alternate. Space swings for testing.
+
+**Tracking demos:**
 
 - **Bubble Pop:** Touch bubbles with your hands. Gold bubbles are worth 3. Tests hand tracking.
 - **Jump & Duck:** Jump over logs 🪵 and duck under bees 🐝. Tests whole-body tracking and jump/squat detection.
