@@ -250,6 +250,10 @@ export function chickenParty(): Game {
       }
     },
 
+    next() {
+      begin(at + 1);
+    },
+
     onKey(k) {
       if (k !== "n") return false;
       begin(at + 1); // skip to the next mini-game

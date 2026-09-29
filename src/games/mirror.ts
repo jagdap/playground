@@ -256,6 +256,10 @@ export function sillyMirror(): Game {
       g.globalAlpha = 1;
     },
 
+    next() {
+      choose(index + 1);
+    },
+
     onKey(k) {
       if (k === "arrowright") choose(index + 1);
       else if (k === "arrowleft") choose(index - 1);

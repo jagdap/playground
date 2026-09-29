@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "assets": "node scripts/fetch-assets.mjs",
     "postinstall": "node scripts/fetch-assets.mjs",
-    "package": "sh scripts/package.sh"
+    "package": "sh scripts/package.sh",
+    "console": "sh scripts/console.sh"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.0.1"

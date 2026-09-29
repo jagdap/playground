@@ -3,3 +3,5 @@ dist
 public/mediapipe
 public/models
 release
+.DS_Store
+__pycache__

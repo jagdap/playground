@@ -182,6 +182,13 @@ export function homeRun(): Game {
       if (message && now < message.until) label(g, message.text, W / 2, H * 0.24, 64 * unit, message.color);
     },
 
+    resume() {
+      // Throw a fresh pitch rather than one that "arrived" during the pause.
+      pitch = null;
+      flight = null;
+      waitT = 1;
+    },
+
     onKey(k) {
       if (k !== " " || !pitch) return false;
       // Keyboard swing for testing: a perfectly timed swing.

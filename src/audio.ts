@@ -17,6 +17,10 @@ export class Sound {
     speechSynthesis.addEventListener("voiceschanged", pick);
   }
 
+  get locked() {
+    return !this.ctx || this.ctx.state !== "running";
+  }
+
   /** Browsers only allow audio after a user gesture; call from key/click handlers. */
   unlock() {
     this.ctx ??= new AudioContext();

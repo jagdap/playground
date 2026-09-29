@@ -29,6 +29,8 @@ export const LM = {
   rAnkle: 28,
 } as const;
 
+const MOTION_JOINTS = [0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+
 export const PLAYER_COLORS = ["#ff5fa2", "#3fb6ff"];
 
 /** One Euro filter: smooths jitter when still, stays responsive when moving fast. */
@@ -81,6 +83,8 @@ export class Player {
   /** Hand velocities in px/s. */
   velL = { x: 0, y: 0 };
   velR = { x: 0, y: 0 };
+  /** Smoothed whole-body motion, in torso-lengths per second (≈0 when frozen). */
+  motion = 0;
   /** Time of the most recent clap (hands coming together). */
   lastClapT = -1e9;
   private handsTogether = false;
@@ -129,6 +133,7 @@ export class Player {
     const dt = t - this.lastSeen;
     const prevL = this.handL;
     const prevR = this.handR;
+    const prevPts = this.pts;
     this.pts = raw.map((p, i) => ({
       x: this.filters[i][0].filter(p.x, t),
       y: this.filters[i][1].filter(p.y, t),
@@ -155,6 +160,16 @@ export class Player {
       this.velL = { x: 0, y: 0 };
       this.velR = { x: 0, y: 0 };
     }
+    if (dt > 0 && dt < 0.2 && prevPts.length) {
+      let sum = 0;
+      let n = 0;
+      for (const i of MOTION_JOINTS) {
+        if (p[i].v < 0.5) continue;
+        sum += dist(p[i], prevPts[i]);
+        n++;
+      }
+      if (n) this.motion += 0.3 * (sum / n / dt / this.torso - this.motion);
+    } else this.motion = 0;
     this.updateClap(t);
     this.updateBaseline(t);
   }

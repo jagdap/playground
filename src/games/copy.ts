@@ -4,13 +4,13 @@ import { label, roundRect } from "../view";
 import type { Game, GameContext } from "./types";
 
 // Tests: reading static body shapes from joint positions.
-type Figure = Record<
+export type Figure = Record<
   "head" | "shL" | "shR" | "elL" | "elR" | "hL" | "hR" | "hipL" | "hipR" | "knL" | "knR" | "ftL" | "ftR",
   [number, number]
 >;
 
 // Stick-figure layout in torso units (y down), as seen on screen.
-const BASE: Figure = {
+export const BASE: Figure = {
   head: [0, -1.55], shL: [-0.45, -1], shR: [0.45, -1],
   elL: [-0.6, -0.4], elR: [0.6, -0.4], hL: [-0.6, 0.2], hR: [0.6, 0.2],
   hipL: [-0.3, 0], hipR: [0.3, 0], knL: [-0.35, 0.9], knR: [0.35, 0.9], ftL: [-0.35, 1.8], ftR: [0.35, 1.8],
@@ -23,7 +23,7 @@ const up = (p: Player, h: Pt) => ok(h) && h.y < p.head.y;
 const down = (p: Player, h: Pt) => ok(h) && h.y > p.shoulderMid.y + 0.3 * p.torso;
 const out = (p: Player, h: Pt, k: number) => Math.abs(h.x - p.shoulderMid.x) > k * p.torso;
 
-const POSES: PoseDef[] = [
+export const POSES: PoseDef[] = [
   {
     name: "Arms Up!", say: "Put your arms up high!",
     figure: { elL: [-0.55, -1.7], elR: [0.55, -1.7], hL: [-0.55, -2.4], hR: [0.55, -2.4] },

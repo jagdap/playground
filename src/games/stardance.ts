@@ -106,6 +106,7 @@ export function starDance(): Game {
     title: "Star Dance",
     emoji: "🌟",
     color: "#8f7cff",
+    ownsMusic: true,
     usesScore: true,
 
     start(c) {
@@ -193,6 +194,16 @@ export function starDance(): Game {
 
       label(g, `♪ ${song.name}`, 30 * unit, H - 40 * unit, 30 * unit, "#fff", "left");
       if (combo >= 3) label(g, `${combo} combo!`, W / 2, H - 50 * unit, 44 * unit, "#ffd23f");
+    },
+
+    next() {
+      startSong(songIdx + 1);
+    },
+
+    resume(pausedFor) {
+      // The audio clock kept running while paused: push the song later.
+      t0 += pausedFor;
+      for (const n of notes) n.time += pausedFor;
     },
 
     onKey(k) {
