@@ -37,6 +37,9 @@ const GAMES: Game[] = [
   mirrorPaint(),
 ];
 
+const WEBGL_HELP =
+  "The body tracker can't use your graphics card (WebGL is off). Quit Chrome completely (Cmd+Q) and reopen it, or check chrome://gpu.";
+
 class App implements GameContext {
   readonly view: View;
   readonly sound = new Sound();
@@ -68,6 +71,7 @@ class App implements GameContext {
   private pauseHolder: Player | null = null;
   private pauseRects: (Target & { emoji: string; title: string; color: string })[] = [];
   private nextUnlockTry = 0;
+  private detectFailures = 0;
 
   constructor(private video: HTMLVideoElement, canvas: HTMLCanvasElement) {
     this.view = new View(canvas, video);
@@ -90,6 +94,8 @@ class App implements GameContext {
       this.video.srcObject = stream;
       await this.video.play();
       this.view.layout();
+      const probe = document.createElement("canvas");
+      if (!probe.getContext("webgl2") && !probe.getContext("webgl")) throw new Error(WEBGL_HELP);
       this.status = "Loading body tracker…";
       void this.music.probe().then(() => this.music.play());
       this.landmarker = await createPoseLandmarker();
@@ -97,7 +103,8 @@ class App implements GameContext {
     } catch (err) {
       console.error(err);
       this.mode = "error";
-      this.status = `Couldn't start: ${(err as Error).message}. Allow camera access and reload.`;
+      const msg = (err as Error).message;
+      this.status = msg === WEBGL_HELP ? msg : `Couldn't start: ${msg}. Allow camera access and reload.`;
     }
   }
 
@@ -278,7 +285,20 @@ class App implements GameContext {
     if (!lm || this.video.readyState < 2 || this.video.currentTime === this.lastVideoTime) return;
     this.lastVideoTime = this.video.currentTime;
     const t0 = performance.now();
-    const res = lm.detectForVideo(this.video, now);
+    let res;
+    try {
+      res = lm.detectForVideo(this.video, now);
+      this.detectFailures = 0;
+    } catch (err) {
+      // Don't let a tracker crash freeze the screen; give up with a clear message.
+      console.error(err);
+      if (++this.detectFailures >= 10) {
+        this.landmarker = null;
+        this.mode = "error";
+        this.status = WEBGL_HELP;
+      }
+      return;
+    }
     this.fps.detectMs = performance.now() - t0;
     this.detectCount++;
     this.players.update(res.landmarks, this.view, t);

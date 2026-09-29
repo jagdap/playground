@@ -78,7 +78,7 @@ Your friend unzips it and double-clicks **Start Playground.command**. The first 
 
 **Tracking demos:**
 
-- **Bubble Pop:** Touch bubbles with your hands. Gold bubbles are worth 3. Tests hand tracking.
+- **Bubble Battle:** Head-to-head bubble popping in 45-second rounds, with a crown for the winner and a round-win tally. Bubbles spawn in mirrored pairs so each half of the screen is fair, and gold bubbles are worth 3. With one player, it's a solo timed challenge with a best score.
 - **Jump & Duck:** Jump over logs 🪵 and duck under bees 🐝. Tests whole-body tracking and jump/squat detection.
 - **Copy the Pose:** Match the stick figure and hold it until the ring fills. Tests reading static poses.
 - **Mirror Paint:** Hands paint glowing trails. Clap for confetti, and high-five each other for a big burst. Tests smooth tracking.
