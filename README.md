@@ -4,9 +4,17 @@ A camera-based motion game system for families that runs in the browser on a Mac
 The webcam tracks up to two players' bodies with MediaPipe Pose, all on the device,
 and games are drawn on top of the mirrored camera video.
 
+## Requirements
+
+- **Node 20.19+ or 22.12+**, plus internet access for the first `npm install`, which downloads the ~9 MB pose model.
+- **A webcam and Google Chrome.** Other browsers may work but aren't tested.
+- **macOS** for console mode, Apple Music and the shareable zip. The game itself runs in any desktop browser.
+
 ## Run
 
 ```sh
+git clone https://github.com/jagdap/playground.git
+cd playground
 npm install      # also copies the MediaPipe wasm and downloads the pose model into public/
 npm run dev      # open http://localhost:5173 in Chrome and allow the camera
 ```
@@ -26,6 +34,14 @@ Everything is controlled by pose alone:
 - **Quit:** Cmd+Q.
 
 A normal browser tab works hands-free too, except that browsers keep sound off until the first click or keypress. Console mode launches Chrome with `--autoplay-policy=no-user-gesture-required` to avoid that.
+
+### Share with a friend (no Node needed)
+
+```sh
+npm run package  # builds release/Playground.zip
+```
+
+Your friend unzips it and double-clicks **Start Playground.command**. The first time, macOS may block the launcher: they right-click it, choose Open, then Open again. It needs Chrome and the Mac's built-in `python3`, and a `READ ME FIRST.txt` inside explains the rest.
 
 ## Keys (for the grown-up)
 
