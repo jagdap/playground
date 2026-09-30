@@ -5,3 +5,4 @@ public/models
 release
 .DS_Store
 __pycache__
+public/locate/

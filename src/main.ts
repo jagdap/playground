@@ -63,6 +63,13 @@ class App implements GameContext {
   private cardRects: Target[] = [];
   // Hands-free controls.
   private menuDwell = new Dwell(1.3);
+  // Menu carousel: one row of cards per page, scrolled with edge arrows.
+  private page = 0;
+  private scroll = 0; // animated page position
+  private arrowDwell = new Dwell(0.8);
+  private arrowRects: Target[] = [];
+  private wheelAccum = 0;
+  private wheelUntil = 0;
   private pauseDwell = new Dwell(1.3);
   private lastHover: string | null = null;
   private paused = false;
@@ -82,6 +89,7 @@ class App implements GameContext {
     };
     addEventListener("keydown", (e) => this.onKey(e));
     canvas.addEventListener("click", (e) => this.onClick(e));
+    canvas.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
     requestAnimationFrame((t) => this.frame(t));
   }
 
@@ -131,6 +139,7 @@ class App implements GameContext {
     this.game = null;
     this.paused = false;
     this.menuDwell.reset(performance.now() / 1000, 1.5);
+    this.page = this.scroll = Math.floor(this.selected / this.perPage);
     this.music.play();
     this.fx.clear();
     speechSynthesis.cancel();
@@ -154,11 +163,10 @@ class App implements GameContext {
     else if (k === "p" && this.mode === "game") this.paused ? this.resume() : this.pause();
     else if (this.mode === "menu") {
       const n = GAMES.length;
-      const cols = this.menuCols;
       if (k === "arrowright") this.select((this.selected + 1) % n);
       else if (k === "arrowleft") this.select((this.selected + n - 1) % n);
-      else if (k === "arrowdown") this.select(Math.min(n - 1, this.selected + cols));
-      else if (k === "arrowup") this.select(Math.max(0, this.selected - cols));
+      else if (k === "arrowdown" || k === "pagedown") this.goPage(this.page + 1);
+      else if (k === "arrowup" || k === "pageup") this.goPage(this.page - 1);
       else if (k === "enter" || k === " ") this.startGame(this.selected);
       else if (k.length === 1 && k >= "1" && k <= String(Math.min(n, 9))) this.startGame(Number(k) - 1);
     } else if (this.mode === "game" && k === "r") this.startGame(this.selected);
@@ -168,14 +176,50 @@ class App implements GameContext {
 
   private select(i: number) {
     this.selected = i;
+    this.page = Math.floor(i / this.perPage); // keyboard selection scrolls the carousel
     this.sound.say(GAMES[i].title);
+  }
+
+  private get perPage() {
+    const { W, H } = this.view;
+    return W > H * 1.2 ? 4 : 2;
+  }
+
+  private get pages() {
+    return Math.ceil(GAMES.length / this.perPage);
+  }
+
+  private goPage(p: number) {
+    const next = Math.max(0, Math.min(this.pages - 1, p));
+    if (next === this.page) return;
+    this.page = next;
+    this.selected = next * this.perPage;
+    this.sound.whoosh();
+    // Don't let a hand that was resting on a card pick it mid-slide.
+    this.menuDwell.reset(performance.now() / 1000, 0.6);
   }
 
   private onClick(e: MouseEvent) {
     this.sound.unlock();
     if (this.mode !== "menu") return;
-    const i = this.cardRects.findIndex((r) => e.clientX >= r.x && e.clientX <= r.x + r.w && e.clientY >= r.y && e.clientY <= r.y + r.h);
-    if (i >= 0) this.startGame(i);
+    const at = (r: Target) => e.clientX >= r.x && e.clientX <= r.x + r.w && e.clientY >= r.y && e.clientY <= r.y + r.h;
+    const arrow = this.arrowRects.find(at);
+    if (arrow) return this.goPage(this.page + (arrow.id === "next" ? 1 : -1));
+    const card = this.cardRects.find(at);
+    if (card) this.startGame(Number(card.id));
+  }
+
+  // Trackpad / mouse wheel: one page per swipe.
+  private onWheel(e: WheelEvent) {
+    if (this.mode !== "menu") return;
+    e.preventDefault();
+    const now = performance.now();
+    if (now < this.wheelUntil) return;
+    this.wheelAccum += Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (Math.abs(this.wheelAccum) < 60) return;
+    this.goPage(this.page + Math.sign(this.wheelAccum));
+    this.wheelAccum = 0;
+    this.wheelUntil = now + 450;
   }
 
   private frame(now: number) {
@@ -219,6 +263,11 @@ class App implements GameContext {
   }
 
   private updateMenu(dt: number, t: number) {
+    this.page = Math.min(this.page, this.pages - 1); // e.g. after a resize
+    this.scroll += (this.page - this.scroll) * Math.min(1, dt * 8);
+    const arrow = this.arrowDwell.update(this.arrowRects, this.hands, dt, t);
+    if (arrow) this.goPage(this.page + (arrow === "next" ? 1 : -1));
+    if (Math.abs(this.scroll - this.page) > 0.03) return; // cards only react once settled
     const hit = this.menuDwell.update(this.cardRects, this.hands, dt, t);
     const hover = this.menuDwell.hovered;
     if (hover && hover !== this.lastHover) this.select(Number(hover));
@@ -345,26 +394,60 @@ class App implements GameContext {
     label(g, "🎈 Playground", W / 2, H * 0.14, 80 * unit);
 
     const n = GAMES.length;
-    const cols = this.menuCols;
-    const rows = Math.ceil(n / cols);
-    const gap = 24 * unit;
-    const availH = H * 0.7;
-    const cw = Math.min((W - gap * (cols + 1)) / cols, (availH - gap * (rows - 1)) / rows / 1.1, 280 * unit);
+    const per = this.perPage;
+    const pages = this.pages;
+    const edge = 120 * unit; // room for the arrows
+    const gap = 28 * unit;
+    const cw = Math.min((W - 2 * edge - gap * (per - 1)) / per, (H * 0.55) / 1.1, 330 * unit);
     const ch = cw * 1.1;
-    const totalW = cols * cw + (cols - 1) * gap;
-    const totalH = rows * ch + (rows - 1) * gap;
-    const x0 = (W - totalW) / 2;
-    const y0 = H * 0.55 - totalH / 2;
+    const cy = H * 0.52;
+    const settled = Math.abs(this.scroll - this.page) <= 0.03;
 
-    this.cardRects = GAMES.map((game, i) => {
-      // Center a short last row.
-      const inRow = Math.min(cols, n - Math.floor(i / cols) * cols);
-      const x = x0 + ((cols - inRow) * (cw + gap)) / 2 + (i % cols) * (cw + gap);
-      const y = y0 + Math.floor(i / cols) * (ch + gap);
-      const r = { id: String(i), x, y, w: cw, h: ch };
+    // Cards slide sideways a whole screen per page.
+    this.cardRects = [];
+    GAMES.forEach((game, i) => {
+      const pg = Math.floor(i / per);
+      const inRow = Math.min(per, n - pg * per);
+      const rowW = inRow * cw + (inRow - 1) * gap;
+      const x = W / 2 + (pg - this.scroll) * W - rowW / 2 + (i % per) * (cw + gap);
+      if (x > W || x + cw < 0) return;
+      const r = { id: String(i), x, y: cy - ch / 2, w: cw, h: ch };
       this.drawCard(r, game.emoji, game.title, game.color, i === this.selected, this.menuDwell.fraction(r.id), t);
-      return r;
+      if (settled && pg === this.page) this.cardRects.push(r);
     });
+
+    // Edge arrows (hold a hand on one to scroll). Tall targets so they're easy to reach.
+    this.arrowRects = [];
+    for (const [id, show, x] of [["prev", this.page > 0, edge / 2], ["next", this.page < pages - 1, W - edge / 2]] as const) {
+      if (!show) continue;
+      const r = { id, x: x - edge / 2, y: cy - ch / 2, w: edge, h: ch };
+      this.arrowRects.push(r);
+      const hot = this.arrowDwell.hovered === id;
+      const R = 52 * unit * (hot ? 1.12 : 1) * (1 + 0.04 * Math.sin(t * 4));
+      g.fillStyle = hot ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.22)";
+      g.beginPath();
+      g.arc(x, cy, R, 0, Math.PI * 2);
+      g.fill();
+      label(g, id === "next" ? "▶" : "◀", x, cy, 48 * unit);
+      const f = this.arrowDwell.fraction(id);
+      if (f > 0) {
+        g.lineWidth = 10 * unit;
+        g.lineCap = "round";
+        g.strokeStyle = "#fff";
+        g.beginPath();
+        g.arc(x, cy, R + 12 * unit, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2);
+        g.stroke();
+      }
+    }
+
+    // Page dots.
+    if (pages > 1)
+      for (let p = 0; p < pages; p++) {
+        g.fillStyle = p === this.page ? "#fff" : "rgba(255,255,255,0.35)";
+        g.beginPath();
+        g.arc(W / 2 + (p - (pages - 1) / 2) * 30 * unit, cy + ch / 2 + 50 * unit, (p === this.page ? 9 : 7) * unit, 0, Math.PI * 2);
+        g.fill();
+      }
 
     this.drawHands();
     g.globalAlpha = 0.8;
@@ -442,11 +525,6 @@ class App implements GameContext {
     g.arc(x, y, 60 * unit, -Math.PI / 2, -Math.PI / 2 + Math.min(1, this.pauseHold / 1.2) * Math.PI * 2);
     g.stroke();
     label(g, "⏸", x, y, 50 * unit);
-  }
-
-  private get menuCols() {
-    const { W, H } = this.view;
-    return W > H * 1.2 ? 5 : 3;
   }
 
   private drawHands() {
